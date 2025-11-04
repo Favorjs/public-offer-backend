@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "make-migrations": "prisma migrate dev --skip-seed",
     "migrate": "prisma migrate dev",
-    "deploy-migrations": "prisma migrate deploy"
+    "deploy-migrations": "prisma migrate deploy",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && your-build-command"
   },
   "prisma": {
     "schema": "models/schema.prisma"
