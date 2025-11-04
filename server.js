@@ -15,8 +15,8 @@ const corsOptions = {
     
     const allowedOrigins = [
       'http://localhost:1010', // React dev server
-      'https://tip.apel.com.ng',
-      'https://www.tip.apel.com.ng'
+      'https://tipoffer.apel.com.ng',
+      'https://www.tipoffer.apel.com.ng'
     ];
     
     // Check if the origin is in the allowed list or if it's a localhost origin
