@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "public_offers" ADD COLUMN     "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
