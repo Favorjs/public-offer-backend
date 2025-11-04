@@ -9,7 +9,7 @@
     "make-migrations": "prisma migrate dev --skip-seed",
     "migrate": "prisma migrate dev",
     "deploy-migrations": "prisma migrate deploy",
-    "build": "npx prisma generate && npm run build"
+   "postinstall": "npx prisma generate"
   },
   "prisma": {
     "schema": "models/schema.prisma"
