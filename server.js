@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
 const { Client } = require('pg');
+const { PrismaClient } = require('@prisma/client');
 
 dotenv.config();
 
@@ -33,24 +34,44 @@ const corsOptions = {
 };
 
 
-async function testRawConnection() {
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-  });
-
+async function initializeDatabase() {
+  const prisma = new PrismaClient();
+  
   try {
-    await client.connect();
-    console.log('✅ Raw PostgreSQL connection successful');
-    const res = await client.query('SELECT NOW()');
-    console.log('✅ Current database time:', res.rows[0].now);
-    await client.end();
-  } catch (err) {
-    console.error('❌ Raw connection failed:', err);
+    console.log('🔄 Checking database tables...');
+    
+    // Test if tables exist by querying a table
+    await prisma.adminUsers.findFirst();
+    console.log('✅ Database tables already exist');
+    
+  } catch (error) {
+    if (error.code === 'P2021' || error.message.includes('does not exist')) {
+      console.log('📋 Tables not found. Creating tables...');
+      
+      // Push schema to create tables
+      const { execSync } = require('child_process');
+      execSync('npx prisma db push', { stdio: 'inherit' });
+      
+      console.log('✅ Tables created successfully!');
+    } else {
+      throw error;
+    }
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-testRawConnection();
+// Initialize database before starting server
+initializeDatabase().then(() => {
+  // Start your server here
+  const PORT = process.env.PORT || 1000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+}).catch(error => {
+  console.error('❌ Failed to initialize database:', error);
+  process.exit(1);
+});
 // Apply CORS middleware FIRST
 app.use(cors(corsOptions));
 
