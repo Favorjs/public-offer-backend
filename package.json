@@ -10,7 +10,7 @@
     "migrate": "prisma migrate dev",
     "deploy-migrations": "prisma migrate deploy",
     "postinstall": "prisma generate",
-    "build": "prisma generate && your-build-command"
+    "build": "npx prisma generate && npm run build"
   },
   "prisma": {
     "schema": "models/schema.prisma"
