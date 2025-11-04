@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
+const { Client } = require('pg');
 
 dotenv.config();
 
@@ -31,6 +32,25 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+
+async function testRawConnection() {
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+
+  try {
+    await client.connect();
+    console.log('✅ Raw PostgreSQL connection successful');
+    const res = await client.query('SELECT NOW()');
+    console.log('✅ Current database time:', res.rows[0].now);
+    await client.end();
+  } catch (err) {
+    console.error('❌ Raw connection failed:', err);
+  }
+}
+
+testRawConnection();
 // Apply CORS middleware FIRST
 app.use(cors(corsOptions));
 
