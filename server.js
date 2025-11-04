@@ -54,15 +54,10 @@ async function testDatabaseConnection() {
 }
 
 // Initialize
-testDatabaseConnection().then(() => {
-  const PORT = process.env.PORT || 1000;
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log('Public offers API available at /api/public-offers');
-  });
-});
+
+
 // Initialize database before starting server
-initializeDatabase().then(() => {
+testDatabaseConnection().then(() => {
   // Start your server here
   const PORT = process.env.PORT || 1000;
   app.listen(PORT, () => {
