@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const dotenv = require('dotenv');
 const { Client } = require('pg');
 const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 dotenv.config();
 
