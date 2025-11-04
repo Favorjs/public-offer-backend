@@ -33,34 +33,33 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-
-async function initializeDatabase() {
-  const prisma = new PrismaClient();
-  
+async function testDatabaseConnection() {
   try {
-    console.log('🔄 Checking database tables...');
+    await prisma.$connect();
+    console.log('✅ Database connected successfully');
     
-    // Test if tables exist by querying a table
-    await prisma.adminUsers.findFirst();
-    console.log('✅ Database tables already exist');
+    // Verify tables exist
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `;
+    console.log(`📊 Found ${tables.length} tables in database`);
     
   } catch (error) {
-    if (error.code === 'P2021' || error.message.includes('does not exist')) {
-      console.log('📋 Tables not found. Creating tables...');
-      
-      // Push schema to create tables
-      const { execSync } = require('child_process');
-      execSync('npx prisma db push', { stdio: 'inherit' });
-      
-      console.log('✅ Tables created successfully!');
-    } else {
-      throw error;
-    }
-  } finally {
-    await prisma.$disconnect();
+    console.error('❌ Database connection failed:', error.message);
+    process.exit(1);
   }
 }
 
+// Initialize
+testDatabaseConnection().then(() => {
+  const PORT = process.env.PORT || 1000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log('Public offers API available at /api/public-offers');
+  });
+});
 // Initialize database before starting server
 initializeDatabase().then(() => {
   // Start your server here
