@@ -18,6 +18,27 @@ class MailgunEmailService {
     this.initializeClient();
   }
 
+  // Resolve internal notification recipients (admin + optional extra recipients)
+  getAdminNotificationRecipients() {
+    const recipients = [];
+
+    if (process.env.ADMIN_EMAIL) recipients.push(process.env.ADMIN_EMAIL);
+
+    // Optional: additional notification recipients (comma-separated)
+    // Example: SUBMISSION_NOTIFY_EMAILS="ops@company.com,ceo@company.com"
+    const extra = process.env.SUBMISSION_NOTIFY_EMAILS || process.env.ADMIN_EMAILS;
+    if (extra) {
+      extra
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((email) => recipients.push(email));
+    }
+
+    // De-duplicate
+    return [...new Set(recipients)].join(',');
+  }
+
   // Initialize Mailgun client
   initializeClient() {
     try {
@@ -76,7 +97,12 @@ class MailgunEmailService {
 
     
     const subject = 'New Public Offer Application Submission';
-    const to = process.env.ADMIN_EMAIL;
+    const to = this.getAdminNotificationRecipients();
+
+    if (!to) {
+      console.warn('⚠️ No admin notification recipients configured. Set ADMIN_EMAIL and/or SUBMISSION_NOTIFY_EMAILS.');
+      return { success: false, error: 'No admin notification recipients configured' };
+    }
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -134,6 +160,14 @@ class MailgunEmailService {
             <tr>
               <td style="padding: 8px 0; font-weight: bold; color: #374151;">Stockbroker:</td>
               <td style="padding: 8px 0;">${applicationData.stockbroker.name} (${applicationData.stockbroker.code})</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold; color: #374151;">Payment Receipt:</td>
+              <td style="padding: 8px 0;">
+                ${applicationData.payment_receipt ? '✅ Uploaded' : '❌ Not uploaded'}
+                ${applicationData.payment_receipt_filename ? ` (${applicationData.payment_receipt_filename})` : ''}
+                ${applicationData.payment_receipt ? ` — <a href="${applicationData.payment_receipt}" target="_blank" rel="noreferrer">View</a>` : ''}
+              </td>
             </tr>
           </table>
         </div>

@@ -1,6 +1,9 @@
 // public_offers.js
 const { PrismaClient } = require('@prisma/client');
+const { randomUUID } = require('crypto');
 const { mailgunEmailService, generatePublicOfferPDF } = require('../utils/email_service');
+const PDFGenerator = require('../utils/pdfGenerator');
+const { uploadDataUrl, isDataUrl } = require('../utils/cloudinary');
 const prisma = new PrismaClient();
 
 class PublicOfferController {
@@ -40,12 +43,82 @@ class PublicOfferController {
         individual_signature,
         corporate_signature,
         joint_signature,
+        payment_receipt,
+        payment_receipt_filename,
+        payment_receipt_mime,
         bank_name,
         bvn,
         account_number,
         branch,
         bank_city
       } = req.body;
+
+      // Upload receipt/signature to Cloudinary (store URLs in DB)
+      const uploadToken = randomUUID();
+      let receiptUrl = null;
+      let individualSignatureUrl = null;
+      let corporateSignatureUrl = null;
+      let jointSignatureUrl = null;
+
+      if (payment_receipt) {
+        if (!isDataUrl(payment_receipt)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid payment receipt format. Please upload a file again.',
+          });
+        }
+        const uploaded = await uploadDataUrl(payment_receipt, {
+          folder: 'public_offer/receipts',
+          publicId: `receipt_${uploadToken}`,
+          resourceType: 'auto',
+        });
+        receiptUrl = uploaded.secure_url;
+      }
+
+      if (individual_signature) {
+        if (!isDataUrl(individual_signature)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid individual signature format. Please upload a file again.',
+          });
+        }
+        const uploaded = await uploadDataUrl(individual_signature, {
+          folder: 'public_offer/signatures',
+          publicId: `signature_individual_${uploadToken}`,
+          resourceType: 'image',
+        });
+        individualSignatureUrl = uploaded.secure_url;
+      }
+
+      if (corporate_signature) {
+        if (!isDataUrl(corporate_signature)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid corporate signature format. Please upload a file again.',
+          });
+        }
+        const uploaded = await uploadDataUrl(corporate_signature, {
+          folder: 'public_offer/signatures',
+          publicId: `signature_corporate_${uploadToken}`,
+          resourceType: 'image',
+        });
+        corporateSignatureUrl = uploaded.secure_url;
+      }
+
+      if (joint_signature) {
+        if (!isDataUrl(joint_signature)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid joint signature format. Please upload a file again.',
+          });
+        }
+        const uploaded = await uploadDataUrl(joint_signature, {
+          folder: 'public_offer/signatures',
+          publicId: `signature_joint_${uploadToken}`,
+          resourceType: 'image',
+        });
+        jointSignatureUrl = uploaded.secure_url;
+      }
 
       
       // Calculate amount payable (shares_applied * 9.50)
@@ -79,9 +152,12 @@ class PublicOfferController {
           second_name: second_name || null,
           second_designation: second_designation || null,
           rc_number: rc_number || null,
-          individual_signature: individual_signature || null,
-          corporate_signature: corporate_signature || null,
-          joint_signature: joint_signature || null,
+          individual_signature: individualSignatureUrl || null,
+          corporate_signature: corporateSignatureUrl || null,
+          joint_signature: jointSignatureUrl || null,
+          payment_receipt: receiptUrl || null,
+          payment_receipt_filename: payment_receipt_filename || null,
+          payment_receipt_mime: payment_receipt_mime || null,
           bank_name: bank_name || null,
           bvn: bvn || null,
           account_number: account_number || null,
