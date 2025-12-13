@@ -121,8 +121,13 @@ class PublicOfferController {
       }
 
       
-      // Calculate amount payable (shares_applied * 9.50)
- const amount_payable = BigInt(shares_applied) * BigInt(950); // 9.50 = 950 kobo
+      // Calculate amount payable in naira (shares_applied * ₦9.50)
+      const sharesCount = Number(shares_applied);
+      if (!sharesCount || Number.isNaN(sharesCount)) {
+        return res.status(400).json({ success: false, message: 'Invalid shares_applied value' });
+      }
+      const amountPayableNaira = sharesCount * 9.5;
+      const amount_payable = BigInt(Math.round(amountPayableNaira)); // store in naira as integer
 
       // Create public offer application
       const publicOffer = await prisma.publicOffer.create({
@@ -170,11 +175,24 @@ class PublicOfferController {
         }
       });
 
-      // Send email notifications with PDF
-      await this.sendEmailNotifications(publicOffer);
+      // Generate PDF and upload to Cloudinary
+      const pdfBuffer = await generatePublicOfferPDF(publicOffer);
+      let pdfUrl = null;
+      if (pdfBuffer && Buffer.isBuffer(pdfBuffer)) {
+        const dataUrl = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
+        const uploadedPdf = await uploadDataUrl(dataUrl, {
+          folder: 'public_offer/applications',
+          publicId: `application_${publicOffer.id}`,
+          resourceType: 'raw'
+        });
+        pdfUrl = uploadedPdf.secure_url;
+      }
 
-      // Generate PDF for immediate download
-    const pdfBuffer = await generatePublicOfferPDF(publicOffer);
+      // Send email notifications with PDF attached and link (fire-and-forget to avoid request timeouts)
+      setImmediate(() => {
+        this.sendEmailNotifications(publicOffer, { pdfBuffer, pdfUrl })
+          .catch(err => console.error('❌ Email notification failed (non-blocking):', err));
+      });
 
       res.status(201).json({
         success: true,
@@ -182,10 +200,10 @@ class PublicOfferController {
       data: {
     ...publicOffer,
     shares_applied: publicOffer.shares_applied.toString(),
-    amount_payable: publicOffer.amount_payable.toString()
+    amount_payable: publicOffer.amount_payable.toString(),
+    pdfUrl
   },
-        // pdf: pdfBuffer.toString('base64') // Send PDF as base64 for frontend download
-         pdfUrl: `/api/public-offers/${publicOffer.id}/download`
+        pdfUrl: pdfUrl || `/api/public-offers/${publicOffer.id}/download`
       });
 
     } catch (error) {
@@ -281,9 +299,16 @@ class PublicOfferController {
 downloadApplicationPDF = async(req, res)=> {
     try {
       const { id } = req.params;
+      const numericId = Number(id);
+      if (!id || Number.isNaN(numericId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid application ID'
+        });
+      }
 
       const publicOffer = await prisma.publicOffer.findUnique({
-        where: { id: parseInt(id) },
+        where: { id: numericId },
         include: {
           stockbroker: true
         }
@@ -319,8 +344,12 @@ downloadApplicationPDF = async(req, res)=> {
  downloadPDF = async(req, res) => {
   try {
     const { id } = req.params;
+    const numericId = Number(id);
+    if (!id || Number.isNaN(numericId)) {
+      return res.status(400).json({ success: false, message: 'Invalid application ID' });
+    }
     const publicOffer = await prisma.publicOffer.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: numericId },
       include: {
         stockbroker: true  // Include related data if needed
       }
@@ -381,13 +410,28 @@ downloadApplicationPDF = async(req, res)=> {
   }
 
   // Send email notifications
- sendEmailNotifications = async(publicOffer)=> {
+ sendEmailNotifications = async(publicOffer, options = {})=> {
     try {
+      const { pdfBuffer, pdfUrl } = options;
+      const pdfAttachment = pdfBuffer
+        ? [{
+            filename: `public-offer-application-${publicOffer.id}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }]
+        : [];
+
       // Send notification to admin with PDF
-      await mailgunEmailService.sendPublicOfferSubmissionNotification(publicOffer);
+      await mailgunEmailService.sendPublicOfferSubmissionNotification(publicOffer, {
+        attachments: pdfAttachment,
+        pdfUrl
+      });
       
       // Send confirmation to applicant with PDF
-      await mailgunEmailService.sendApplicantConfirmation(publicOffer);
+      await mailgunEmailService.sendApplicantConfirmation(publicOffer, {
+        attachments: pdfAttachment,
+        pdfUrl
+      });
 
       console.log('✅ Email notifications sent successfully with PDF attachments');
     } catch (emailError) {

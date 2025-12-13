@@ -88,11 +88,11 @@ class PDFGenerator {
 
       setFieldIfExists('amount_payable', 
         publicOffer.amount_payable 
-          ? (Number(publicOffer.amount_payable) / 100).toFixed(2)
+          ? Number(publicOffer.amount_payable).toFixed(2)
           : '0.00'
       ) || setFieldIfExists('AMOUNT', 
         publicOffer.amount_payable 
-          ? (Number(publicOffer.amount_payable) / 100).toFixed(2)
+          ? Number(publicOffer.amount_payable).toFixed(2)
           : '0.00'
       );
 

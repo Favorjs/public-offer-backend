@@ -60,6 +60,24 @@ class MailgunEmailService {
         this.initializeClient();
       }
 
+      // Normalize attachments for Mailgun (expects Buffer/Stream/File/String as 'data')
+      const mgAttachments = (attachments || [])
+        .filter(Boolean)
+        .map((att) => {
+          const data =
+            att?.content ??
+            att?.data ??
+            att?.buffer ??
+            (Buffer.isBuffer(att) ? att : null);
+          if (!data) return null;
+          return {
+            filename: att.filename || att.name || 'attachment.pdf',
+            data,
+            contentType: att.contentType || att.mimetype || 'application/pdf'
+          };
+        })
+        .filter(Boolean);
+
       const emailData = {
         from: `${this.fromName} <${this.fromEmail}>`,
         to: to,
@@ -68,8 +86,8 @@ class MailgunEmailService {
       };
 
       // Add attachments if any
-      if (attachments.length > 0) {
-        emailData.attachment = attachments; 
+      if (mgAttachments.length > 0) {
+        emailData.attachment = mgAttachments; 
       }
 
       const response = await this.client.messages.create(this.domain, emailData);
@@ -93,7 +111,8 @@ class MailgunEmailService {
   }
 
   // Send public offer submission notification to admin
-  async sendPublicOfferSubmissionNotification(applicationData) {
+  async sendPublicOfferSubmissionNotification(applicationData, options = {}) {
+    const { attachments = [], pdfUrl } = options;
 
     
     const subject = 'New Public Offer Application Submission';
@@ -167,6 +186,7 @@ class MailgunEmailService {
                 ${applicationData.payment_receipt ? '✅ Uploaded' : '❌ Not uploaded'}
                 ${applicationData.payment_receipt_filename ? ` (${applicationData.payment_receipt_filename})` : ''}
                 ${applicationData.payment_receipt ? ` — <a href="${applicationData.payment_receipt}" target="_blank" rel="noreferrer">View</a>` : ''}
+                ${pdfUrl ? `<br/><a href="${pdfUrl}" target="_blank" rel="noreferrer">Download Application PDF</a>` : ''}
               </td>
             </tr>
           </table>
@@ -213,7 +233,7 @@ class MailgunEmailService {
     `;
 
     try {
-      const result = await this.sendEmail(to, subject, html);
+      const result = await this.sendEmail(to, subject, html, attachments);
       console.log('✅ Public offer submission notification sent to admin');
       return result;
     } catch (error) {
@@ -223,7 +243,8 @@ class MailgunEmailService {
   }
 
   // Send confirmation to applicant
-  async sendApplicantConfirmation(applicationData) {
+  async sendApplicantConfirmation(applicationData, options = {}) {
+    const { attachments = [], pdfUrl } = options;
     const subject = 'Your Public Offer Application Confirmation - The Initiates PLC';
     const to = applicationData.email;
     
@@ -308,10 +329,16 @@ class MailgunEmailService {
         
         <p>If you have any questions about your application, please contact our support team:</p>
         <div style="background-color: #ecfdf5; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 5px 0;">📧 ${process.env.SUPPORT_EMAIL || 'wms@initiatesgroup.com'}</p>
-          <p style="margin: 5px 0;">📞 ${process.env.SUPPORT_PHONE || '+234 (0)2084-66 9510'}</p>
+          <p style="margin: 5px 0;">📧 ${process.env.SUPPORT_EMAIL || 'registrars@apel.ng'}</p>
+          <p style="margin: 5px 0;">📞 ${process.env.SUPPORT_PHONE || '+2347046126698'}</p>
         </div>
         
+        ${pdfUrl ? `
+        <div style="margin: 20px 0; padding: 12px 14px; border-radius: 8px; background: #eef2ff;">
+          <strong>Your PDF Application:</strong>
+          <div><a href="${pdfUrl}" target="_blank" rel="noreferrer">${pdfUrl}</a></div>
+        </div>` : ''}
+
         <p>Best regards,<br><strong>The Initiates PLC Team</strong></p>
         
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
@@ -323,7 +350,7 @@ class MailgunEmailService {
     `;
 
     try {
-      const result = await this.sendEmail(to, subject, html);
+      const result = await this.sendEmail(to, subject, html, attachments);
       console.log('✅ Applicant confirmation email sent');
       return result;
     } catch (error) {
