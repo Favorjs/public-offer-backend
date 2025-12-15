@@ -183,7 +183,13 @@ class PublicOfferController {
         const uploadedPdf = await uploadDataUrl(dataUrl, {
           folder: 'public_offer/applications',
           publicId: `application_${publicOffer.id}`,
-          resourceType: 'raw'
+          resourceType: 'raw',
+          format: 'pdf',
+          uploadOptions: {
+            use_filename: true,
+            unique_filename: false,
+            filename_override: `public-offer-application-${publicOffer.id}.pdf`,
+          },
         });
         pdfUrl = uploadedPdf.secure_url;
       }

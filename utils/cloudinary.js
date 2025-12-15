@@ -29,7 +29,10 @@ function isDataUrl(value) {
   return typeof value === 'string' && value.startsWith('data:');
 }
 
-async function uploadDataUrl(dataUrl, { folder, publicId, resourceType = 'auto' } = {}) {
+async function uploadDataUrl(
+  dataUrl,
+  { folder, publicId, resourceType = 'auto', format, uploadOptions = {} } = {}
+) {
   configureCloudinary();
 
   if (!isDataUrl(dataUrl)) {
@@ -40,6 +43,8 @@ async function uploadDataUrl(dataUrl, { folder, publicId, resourceType = 'auto' 
     folder: folder || 'public_offer',
     public_id: publicId,
     resource_type: resourceType,
+    format,
+    ...uploadOptions,
   });
 
   return result; // includes secure_url, public_id, etc.
