@@ -42,7 +42,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Routes
-// app.use('/api/auth', require('./routes/admin_auth'));
+app.use('/api/auth', require('./routes/admin_auth'));
 app.use('/api/public-offers', require('./routes/public_offers')); 
 // Backwards-compatible alias (some clients call the API without the `/api` prefix)
 app.use('/public-offers', require('./routes/public_offers'));

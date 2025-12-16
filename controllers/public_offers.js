@@ -6,6 +6,16 @@ const PDFGenerator = require('../utils/pdfGenerator');
 const { uploadDataUrl, isDataUrl } = require('../utils/cloudinary');
 const prisma = new PrismaClient();
 
+// Helper: normalize BigInt fields to strings for JSON responses
+const serializePublicOffer = (offer) => {
+  if (!offer) return offer;
+  return {
+    ...offer,
+    shares_applied: offer.shares_applied?.toString?.() ?? offer.shares_applied,
+    amount_payable: offer.amount_payable?.toString?.() ?? offer.amount_payable,
+  };
+};
+
 class PublicOfferController {
   
   // Create new public offer application
@@ -247,7 +257,7 @@ class PublicOfferController {
 
       res.json({
         success: true,
-        data: publicOffers,
+        data: publicOffers.map(serializePublicOffer),
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -288,7 +298,7 @@ class PublicOfferController {
 
       res.json({
         success: true,
-        data: publicOffer
+        data: serializePublicOffer(publicOffer)
       });
 
     } catch (error) {

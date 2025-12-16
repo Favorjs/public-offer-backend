@@ -260,14 +260,20 @@ class PDFGenerator {
       );
 
       // Try to flatten the form (but don't fail if it doesn't work)
+      let finalPdf = pdfDoc;
       try {
         form.flatten();
       } catch (error) {
-        console.warn('Could not flatten form, saving without flattening:', error.message);
+        console.warn('Could not flatten form, attempting fallback copy:', error.message);
+        // Fallback: copy pages into a fresh PDF to strip problematic form refs
+        const fallbackPdf = await PDFDocument.create();
+        const copiedPages = await fallbackPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+        copiedPages.forEach((p) => fallbackPdf.addPage(p));
+        finalPdf = fallbackPdf;
       }
 
       // Save the PDF to a buffer
-      const pdfBytes = await pdfDoc.save();
+      const pdfBytes = await finalPdf.save();
       return Buffer.from(pdfBytes);
 
     } catch (error) {

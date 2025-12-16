@@ -3,11 +3,12 @@ const express = require('express');
 const router = express.Router();
 const PublicOfferController = require('../controllers/public_offers');
 const PDFGenerator = require('../utils/pdfGenerator');
+const authMiddleware = require('../middleware/auth');
 
 // Public offer routes
 router.post('/applications', PublicOfferController.createPublicOffer);
-router.get('/applications', PublicOfferController.getAllPublicOffers);
-router.get('/applications/:id', PublicOfferController.getPublicOfferById);
+router.get('/applications', authMiddleware, PublicOfferController.getAllPublicOffers);
+router.get('/applications/:id', authMiddleware, PublicOfferController.getPublicOfferById);
 router.get('/applications/:id/pdf', PublicOfferController.downloadApplicationPDF);
 router.patch('/applications/:id/status', PublicOfferController.updatePublicOfferStatus);
 router.get('/statistics', PublicOfferController.getStatistics);
